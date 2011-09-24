@@ -5,7 +5,7 @@ import org.junit.runner._
 import runner._
 
 @RunWith(classOf[JUnitRunner])
-class HelloWorldSpec extends Specification { def is =
+class AppySpec extends Specification { def is =
   "Appy specification"                 ^
                                       p^
   "Appy should"                        ^
