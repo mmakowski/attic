@@ -6,4 +6,8 @@ public class Appy {
 	public boolean scared() {
 		return blippy.foo().toLowerCase().contains("boo!");
 	}
+	
+	public String name() {
+	    return "Appy";
+	}
 }
