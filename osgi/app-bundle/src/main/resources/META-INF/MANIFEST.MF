@@ -1,9 +1,9 @@
-Bundle-SymbolicName: com.mmakowski.osgi.platform
+Bundle-SymbolicName: com.mmakowski.osgi.app1
 Bundle-Version: 1.0.0.SNAPSHOT
-Bundle-Name: App Platform 
-Bundle-Description: A bundle that provides application platform
+Bundle-Name: App 1 
+Bundle-Description: Application 1
 Bundle-Vendor: Maciek Makowski
-Bundle-Activator: com.mmakowski.osgi.platform.Activator
+Bundle-Activator: com.mmakowski.osgi.app1.Activator
 Import-Package: org.osgi.framework,
   com.mmakowski.osgi.platform.api,
   com.mmakowski.osgi.platform.api.app,

@@ -4,4 +4,5 @@ Bundle-Name: Platform API
 Bundle-Description: A bundle that provides application platform API
 Bundle-Vendor: Maciek Makowski
 Export-Package: com.mmakowski.osgi.platform.api,
+  com.mmakowski.osgi.platform.api.app,
   com.mmakowski.osgi.platform.api.services
