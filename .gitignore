@@ -1,0 +1,5 @@
+/felix-framework*
+.classpath
+.project
+.settings/
+target/

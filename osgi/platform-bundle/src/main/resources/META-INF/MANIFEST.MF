@@ -1,0 +1,6 @@
+Bundle-Name: App Platform 
+Bundle-Description: A bundle that provides application platform
+Bundle-Vendor: Maciek Makowski
+Bundle-Version: 1.0.0
+Bundle-Activator: com.mmakowski.osgi.platform.Activator
+Import-Package: org.osgi.framework
