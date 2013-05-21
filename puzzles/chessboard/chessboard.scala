@@ -160,7 +160,7 @@ object Chessboard {
   }
 
   def stacked(counts: Map[Piece, Int]) = 
-    piecesOrderedByEliminationPower.foldLeft(Stack[Piece]()) { (stack, piece) => 
+    piecesOrderedByEliminationPower.foldRight(Stack[Piece]()) { (piece, stack) => 
       stack.pushAll(Seq.fill(counts(piece))(piece))
     }
 
