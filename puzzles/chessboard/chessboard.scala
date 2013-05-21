@@ -1,7 +1,7 @@
 import scala.language.implicitConversions
 
 import scala.math.abs
-import scala.collection.immutable.Stack
+import scala.collection.immutable.{ Stack, Vector }
 import scala.collection.mutable.StringBuilder
 
 object Chessboard extends App {
@@ -49,7 +49,7 @@ object Chessboard extends App {
         yield pos
   }
 
-  val piecesOrderedByEliminationPower = Seq(Queen, Bishop, Rook, Knight, King)
+  val piecesOrderedByEliminationPower = Seq(Queen, Rook, Bishop, King, Knight)
 
   sealed trait Field
   case object Empty                 extends Field { override def toString() = "." }
@@ -79,8 +79,8 @@ object Chessboard extends App {
 
     def fieldAt(position: Position) = fields(fieldOffset(position))
 
-    def emptyPositions() = 
-      for (x <- 0 until size.x; y <- 0 until size.y;
+    def emptyPositions(from: Position = (0, 0)) = 
+      for (x <- from.x until size.x; y <- from.y until size.y;
            pos = (x, y)
            if fieldAt(pos) == Empty) 
         yield pos
@@ -124,29 +124,42 @@ object Chessboard extends App {
   object Board {
     def apply(size: Position) = new Board(size, emptyFields(size))
 
-    private def emptyFields(size: Position): Seq[Field] = Seq.fill(size.x * size.y)(Empty)
+    private def emptyFields(size: Position): Seq[Field] = Vector.fill(size.x * size.y)(Empty)
   }
 
-  val size = (6, 5)
+  val size = (3, 4)
   val pieces = Map[Piece, Int](King   -> 2,
-                               Queen  -> 1,
-                               Bishop -> 1,
-                               Rook   -> 1,
-                               Knight -> 1).withDefaultValue(0)
+                               // Queen  -> 1,
+                               // Bishop -> 1,
+                               Rook   -> 1
+                               /*Knight -> 1*/).withDefaultValue(0)
  
-  def stacked(counts: Map[Piece, Int]) = piecesOrderedByEliminationPower.foldLeft(Stack[Piece]()) { (stack, piece) => 
+  def stacked(counts: Map[Piece, Int]) = piecesOrderedByEliminationPower.reverse.foldLeft(Stack[Piece]()) { (stack, piece) => 
     counts(piece)
     Seq.fill(counts(piece))(piece) ++: stack
   }
 
-  def solutions(maybeBoard: Option[Board], pieces: Stack[Piece]): scala.collection.GenSeq[Board] = maybeBoard match {
+  // the top level of the search tree, executes in parallel
+  def solutions(size: Position, pieces: Stack[Piece]): scala.collection.GenSeq[Board] =
+    if (pieces.isEmpty) Nil
+    else {
+      val board = Board(size)
+      board.emptyPositions().flatMap(pos => solutions(board.withPiece(pieces.top, pos), pieces.pop, pieces.top, pos))
+    }
+
+  def solutions(maybeBoard: Option[Board], pieces: Stack[Piece], lastPiece: Piece, lastPos: Position): scala.collection.GenSeq[Board] = maybeBoard match {
     case None => Nil
     case Some(board) =>
       if (pieces.isEmpty) Seq(board)
-      else board.emptyPositions.par.flatMap(pos => solutions(board.withPiece(pieces.top, pos), pieces.pop))
+      else {
+        // if current piece is the same as the last piece placed, only attempt to place it
+        // on positions higher than that of the previous piece -- this will eliminate duplicates
+        val fromPos = if (lastPiece == pieces.top) lastPos else Position(0, 0)
+        board.emptyPositions(fromPos).flatMap(pos => solutions(board.withPiece(pieces.top, pos), pieces.pop, pieces.top, pos))
+      }
   }
 
-  val foundSolutions = solutions(Some(Board(size)), stacked(pieces)).toSet
+  val foundSolutions = solutions(size, stacked(pieces))
   foundSolutions.foreach(println(_))
   println("found %d solutions" format (foundSolutions.size))
 }
