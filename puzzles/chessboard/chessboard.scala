@@ -128,7 +128,7 @@ object Chessboard extends App {
     private def emptyFields(size: Position): Seq[Field] = Vector.fill(size.x * size.y)(Empty)
   }
 
-  val size = (6, 5)
+  val size = (6, 7)
   val pieces = Map[Piece, Int](King   -> 2,
                                Queen  -> 1,
                                Bishop -> 1,
@@ -141,26 +141,26 @@ object Chessboard extends App {
   }
 
   // the top level of the search tree, executes in parallel
-  def solutions(size: Position, pieces: Stack[Piece]): scala.collection.GenSeq[Board] =
-    if (pieces.isEmpty) Nil
+  def solutions(size: Position, pieces: Stack[Piece]): Int =
+    if (pieces.isEmpty) 1
     else {
       val board = Board(size)
-      board.emptyPositions().par.flatMap(pos => solutions(board.withPiece(pieces.top, pos), pieces.pop, pieces.top, pos))
+      board.emptyPositions().par.map(pos => solutions(board.withPiece(pieces.top, pos), pieces.pop, pieces.top, pos)).sum
     }
 
-  def solutions(maybeBoard: Option[Board], pieces: Stack[Piece], lastPiece: Piece, lastPos: Position): scala.collection.GenSeq[Board] = maybeBoard match {
-    case None => Nil
+  def solutions(maybeBoard: Option[Board], pieces: Stack[Piece], lastPiece: Piece, lastPos: Position): Int = maybeBoard match {
+    case None => 0
     case Some(board) =>
-      if (pieces.isEmpty) Seq(board)
+      if (pieces.isEmpty) 1 // todo: println Seq(board)
       else {
         // if current piece is the same as the last piece placed, only attempt to place it
         // on positions higher than that of the previous piece -- this will eliminate duplicates
         val fromPos = if (lastPiece == pieces.top) lastPos else Position(0, 0)
-        board.emptyPositions(fromPos).flatMap(pos => solutions(board.withPiece(pieces.top, pos), pieces.pop, pieces.top, pos))
+        board.emptyPositions(fromPos).foldLeft(0)((count, pos) => count + solutions(board.withPiece(pieces.top, pos), pieces.pop, pieces.top, pos))
       }
   }
 
-  val foundSolutions = solutions(size, stacked(pieces))
+  val solutionCount = solutions(size, stacked(pieces))
   //foundSolutions.foreach(println(_))
-  println("found %d solutions" format (foundSolutions.size))
+  println("found %d solutions" format (solutionCount))
 }
