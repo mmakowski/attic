@@ -1,20 +1,55 @@
-import scala.language.implicitConversions
+import scala.language.implicitConversions // requires scala 2.10
 
 import scala.math.abs
 import scala.collection.immutable.{ Stack, Vector }
 import scala.collection.mutable.StringBuilder
 
-object Chessboard extends App {
+object Chessboard {
+  def main(args: Array[String]) = {
+    val (boardSize, pieces, quiet) = parse(args)
+    val solutionCount = solutions(boardSize, stacked(pieces), quiet)
+    println("found %d solutions" format (solutionCount))
+  }
+
+  // the top level of the search tree, executes in parallel
+  def solutions(size: Position, pieces: Stack[Piece], quiet: Boolean): Int =
+    if (pieces.isEmpty) 1
+    else {
+      val board = Board(size)
+      board.emptyPositions().par.map { pos => 
+        solutions(board.withPiece(pieces.top, pos), pieces.pop, pieces.top, pos, quiet)
+      }.sum
+    }
+
+  def solutions(maybeBoard: Option[Board], 
+                pieces:     Stack[Piece], 
+                lastPiece:  Piece, 
+                lastPos:    Position,
+                quiet:      Boolean): Int = maybeBoard match {
+    case None        => 0
+    case Some(board) =>
+      if (pieces.isEmpty) {
+        if (!quiet) println(board)
+        1
+      } else {
+        // if current piece is the same as the last piece placed, only attempt to place it
+        // on positions higher than that of the previous piece -- this will eliminate duplicates
+        val fromPos = if (lastPiece == pieces.top) lastPos else Position(0, 0)
+        board.emptyPositions(fromPos).foldLeft(0) { (count, pos) => 
+          count + solutions(board.withPiece(pieces.top, pos), pieces.pop, pieces.top, pos, quiet)
+        }
+      }
+    }
+
   case class Position(x: Int, y: Int) {
     def +(other: Position) = Position(x + other.x, y + other.y)
     def -(other: Position) = Position(x - other.x, y - other.y)
-    override def toString() = "(%d,%d)" format (x, y)
   }
+
   implicit def intPairToPosition(p: (Int, Int)) = Position(p._1, p._2)
 
   abstract class Piece(symbol: String) {
     def attackedPositions(board: Board, piecePosition: Position): Seq[Position]
-
     override def toString() = symbol
   }
 
@@ -54,7 +89,7 @@ object Chessboard extends App {
 
   sealed trait Field
   case object Empty                 extends Field { override def toString() = "." }
-  case object Attacked              extends Field { override def toString() = "x" }
+  case object Attacked              extends Field { override def toString() = "." }
   case class Occupied(piece: Piece) extends Field { override def toString() = piece.toString }
 
   class Board private (val         size:   Position, 
@@ -80,11 +115,14 @@ object Chessboard extends App {
 
     def fieldAt(position: Position) = fields(fieldOffset(position))
 
-    def emptyPositions(from: Position = (0, 0)) =
+    def emptyPositions(from: Position = (0, 0)): Seq[Position] =
       for (x <- 0 until size.x; y <- 0 until size.y;
-           pos = (x, y)
-           if (x == from.x && y >= from.y || x > from.x) && fieldAt(pos) == Empty) 
+           pos = Position(x, y)
+           if isAfter(from, pos) && fieldAt(pos) == Empty) 
         yield pos
+
+    private def isAfter(before: Position, after: Position): Boolean = 
+      after.x == before.x && after.y >= before.y || after.x > before.x
 
     def contains(position: Position): Boolean = 
       position.x >= 0 && position.x < size.x &&
@@ -113,54 +151,40 @@ object Chessboard extends App {
       }
       buffer.toString
     }
-
-    override def equals(other: Any) = other match {
-      case otherBoard: Board => fields == otherBoard.fields
-      case _                 => false
-    }
-
-    override def hashCode() = fields.hashCode
   }
 
-  object Board {
+  object Board extends Function1[Position, Board] {
     def apply(size: Position) = new Board(size, emptyFields(size))
 
     private def emptyFields(size: Position): Seq[Field] = Vector.fill(size.x * size.y)(Empty)
   }
 
-  val size = (6, 7)
-  val pieces = Map[Piece, Int](King   -> 2,
-                               Queen  -> 1,
-                               Bishop -> 1,
-                               Rook   -> 1,
-                               Knight -> 1).withDefaultValue(0)
- 
-  def stacked(counts: Map[Piece, Int]) = piecesOrderedByEliminationPower.reverse.foldLeft(Stack[Piece]()) { (stack, piece) => 
-    counts(piece)
-    Seq.fill(counts(piece))(piece) ++: stack
-  }
-
-  // the top level of the search tree, executes in parallel
-  def solutions(size: Position, pieces: Stack[Piece]): Int =
-    if (pieces.isEmpty) 1
-    else {
-      val board = Board(size)
-      board.emptyPositions().par.map(pos => solutions(board.withPiece(pieces.top, pos), pieces.pop, pieces.top, pos)).sum
+  def stacked(counts: Map[Piece, Int]) = 
+    piecesOrderedByEliminationPower.foldLeft(Stack[Piece]()) { (stack, piece) => 
+      stack.pushAll(Seq.fill(counts(piece))(piece))
     }
 
-  def solutions(maybeBoard: Option[Board], pieces: Stack[Piece], lastPiece: Piece, lastPos: Position): Int = maybeBoard match {
-    case None => 0
-    case Some(board) =>
-      if (pieces.isEmpty) 1 // todo: println Seq(board)
-      else {
-        // if current piece is the same as the last piece placed, only attempt to place it
-        // on positions higher than that of the previous piece -- this will eliminate duplicates
-        val fromPos = if (lastPiece == pieces.top) lastPos else Position(0, 0)
-        board.emptyPositions(fromPos).foldLeft(0)((count, pos) => count + solutions(board.withPiece(pieces.top, pos), pieces.pop, pieces.top, pos))
-      }
+  def parse(args: Array[String]): (Position, Map[Piece, Int], Boolean) = {
+    if (args.length < 7 || args.length > 8) showUsageAndExit()
+    val quiet =  args.length == 8 && args(7) == "--quiet"
+    try {
+      ((int(args(0)), int(args(1))), 
+       Map[Piece, Int](King   -> int(args(2)),
+                       Queen  -> int(args(3)),
+                       Bishop -> int(args(4)),
+                       Rook   -> int(args(5)),
+                       Knight -> int(args(6))),
+       quiet)
+    } catch {
+      case _: NumberFormatException => showUsageAndExit()
+    }
   }
 
-  val solutionCount = solutions(size, stacked(pieces))
-  //foundSolutions.foreach(println(_))
-  println("found %d solutions" format (solutionCount))
+  def int(str: String): Int = Integer.parseInt(str)
+
+  def showUsageAndExit(): Nothing = {
+    val usage = """usage: chessboard WIDTH HEIGHT KINGS QUEENS BISHOPS ROOKS KNIGHTS [--quiet]"""
+    System.err.println(usage)
+    sys.exit(2)
+  }
 }
