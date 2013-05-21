@@ -133,17 +133,17 @@ object Chessboard extends App {
                                Bishop -> 1,
                                Rook   -> 1,
                                Knight -> 1).withDefaultValue(0)
-
+ 
   def stacked(counts: Map[Piece, Int]) = piecesOrderedByEliminationPower.foldLeft(Stack[Piece]()) { (stack, piece) => 
     counts(piece)
     Seq.fill(counts(piece))(piece) ++: stack
   }
 
-  def solutions(maybeBoard: Option[Board], pieces: Stack[Piece]): Seq[Board] = maybeBoard match {
+  def solutions(maybeBoard: Option[Board], pieces: Stack[Piece]): scala.collection.GenSeq[Board] = maybeBoard match {
     case None => Nil
     case Some(board) =>
       if (pieces.isEmpty) Seq(board)
-      else                board.emptyPositions.flatMap(pos => solutions(board.withPiece(pieces.top, pos), pieces.pop))
+      else board.emptyPositions.par.flatMap(pos => solutions(board.withPiece(pieces.top, pos), pieces.pop))
   }
 
   val foundSolutions = solutions(Some(Board(size)), stacked(pieces)).toSet
