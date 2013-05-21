@@ -8,6 +8,7 @@ object Chessboard extends App {
   case class Position(x: Int, y: Int) {
     def +(other: Position) = Position(x + other.x, y + other.y)
     def -(other: Position) = Position(x - other.x, y - other.y)
+    override def toString() = "(%d,%d)" format (x, y)
   }
   implicit def intPairToPosition(p: (Int, Int)) = Position(p._1, p._2)
 
@@ -58,7 +59,7 @@ object Chessboard extends App {
 
   class Board private (val         size:   Position, 
                        private val fields: Seq[Field]) {
-    def withPiece(piece: Piece, position: Position): Option[Board] = {
+    def withPiece(piece: Piece, position: Position): Option[Board] = {      
       val attacks = piece.attackedPositions(this, position)
       if (anyContainsPiece(attacks)) None
       else {
@@ -79,10 +80,10 @@ object Chessboard extends App {
 
     def fieldAt(position: Position) = fields(fieldOffset(position))
 
-    def emptyPositions(from: Position = (0, 0)) = 
-      for (x <- from.x until size.x; y <- from.y until size.y;
+    def emptyPositions(from: Position = (0, 0)) =
+      for (x <- 0 until size.x; y <- 0 until size.y;
            pos = (x, y)
-           if fieldAt(pos) == Empty) 
+           if (x == from.x && y >= from.y || x > from.x) && fieldAt(pos) == Empty) 
         yield pos
 
     def contains(position: Position): Boolean = 
@@ -127,12 +128,12 @@ object Chessboard extends App {
     private def emptyFields(size: Position): Seq[Field] = Vector.fill(size.x * size.y)(Empty)
   }
 
-  val size = (3, 4)
+  val size = (6, 5)
   val pieces = Map[Piece, Int](King   -> 2,
-                               // Queen  -> 1,
-                               // Bishop -> 1,
-                               Rook   -> 1
-                               /*Knight -> 1*/).withDefaultValue(0)
+                               Queen  -> 1,
+                               Bishop -> 1,
+                               Rook   -> 1,
+                               Knight -> 1).withDefaultValue(0)
  
   def stacked(counts: Map[Piece, Int]) = piecesOrderedByEliminationPower.reverse.foldLeft(Stack[Piece]()) { (stack, piece) => 
     counts(piece)
@@ -144,7 +145,7 @@ object Chessboard extends App {
     if (pieces.isEmpty) Nil
     else {
       val board = Board(size)
-      board.emptyPositions().flatMap(pos => solutions(board.withPiece(pieces.top, pos), pieces.pop, pieces.top, pos))
+      board.emptyPositions().par.flatMap(pos => solutions(board.withPiece(pieces.top, pos), pieces.pop, pieces.top, pos))
     }
 
   def solutions(maybeBoard: Option[Board], pieces: Stack[Piece], lastPiece: Piece, lastPos: Position): scala.collection.GenSeq[Board] = maybeBoard match {
@@ -160,6 +161,6 @@ object Chessboard extends App {
   }
 
   val foundSolutions = solutions(size, stacked(pieces))
-  foundSolutions.foreach(println(_))
+  //foundSolutions.foreach(println(_))
   println("found %d solutions" format (foundSolutions.size))
 }
