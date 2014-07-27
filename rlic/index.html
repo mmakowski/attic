@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+<style type="text/css">
+  html { height: 100% }
+  body { height: 100%; margin: 0; padding: 0 }
+  #map_canvas { height: 100% }
+</style>
+<script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?key=AIzaSyA1Cb9wgMO17oLXC8dw_N_V0oE0jYEiasc&sensor=false">
+</script>
+<script type="text/javascript">
+  function initialise() {
+    var centre = new google.maps.LatLng(37.762, 140.185);
+    var mapOptions = {
+      zoom: 7,
+      center: centre,
+      mapTypeId: google.maps.MapTypeId.ROADMAP
+    };
+    var map = new google.maps.Map(document.getElementById("map_canvas"), mapOptions);
+    loadDataAndPutOn(map);
+  }
+
+  function loadDataAndPutOn(map) {
+    var xmlhttp = newXmlHttpRequest();
+    xmlhttp.onreadystatechange = function(){
+      if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+        var records = eval(xmlhttp.responseText);
+        createMarkers(records, map);
+      }
+    }
+    xmlhttp.open("GET", "http://mmakowski.com/rlic/data.json", true);
+    xmlhttp.send();
+  }
+
+  function newXmlHttpRequest() {
+    if (window.XMLHttpRequest) return new XMLHttpRequest();
+    else return new ActiveXObject("Microsoft.XMLHTTP");
+  }
+
+  function createMarkers(records, map) {
+    for (i in records) {
+      var record = records[i];
+      var marker = new google.maps.Marker({
+        position: new google.maps.LatLng(record.lat, record.lng),
+        title: record.reading.toString() + " (" + record.date + ")",
+        icon: iconFor(record.reading),
+        map: map
+      });
+    }
+  }
+
+  function iconFor(reading) {
+    var bracket = Math.round(reading / 500);
+    if (bracket > 3) bracket = 3;
+    return bracket.toString() + ".png";
+  }
+</script>
+</head>
+<body onload="initialise()">
+  <div id="map_canvas" style="width:100%; height:100%"></div>
+</body>
+</html>
